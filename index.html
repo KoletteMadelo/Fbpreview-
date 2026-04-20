@@ -42,7 +42,7 @@
         .zoom-controls { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
         .zoom-slider { flex-grow: 1; }
         
-        /* New Style for Finish Button */
+        /* Finish Button Style */
         #finishBtn { background: #1877F2; color: white; border: none; padding: 12px; width: 100%; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 10px; }
         #finishBtn:hover { background: #166fe5; }
         #shareBox { margin-top: 15px; padding: 10px; background: #e7f3ff; border-radius: 6px; display: none; }
@@ -97,7 +97,6 @@
 
     let scale = 1, posX = 0, posY = 0, isDragging = false, startX, startY;
 
-    // --- AUTOMATIC LOADING ---
     window.onload = async () => {
         const params = new URLSearchParams(window.location.search);
         const postId = params.get('id');
@@ -114,12 +113,17 @@
         }
     };
 
-    // --- UI UPDATES ---
     titleInput.oninput = () => document.getElementById('displayTitle').innerText = titleInput.value;
     descInput.oninput = () => document.getElementById('displayDesc').innerText = descInput.value;
-    imageUrlInput.oninput = () => loadImage(imageUrlInput.value);
+    
+    imageUrlInput.oninput = () => {
+        if(imageUrlInput.value.trim() !== "") {
+            loadImage(imageUrlInput.value);
+        }
+    };
 
     function loadImage(url) {
+        previewImg.crossOrigin = "anonymous"; 
         previewImg.src = url;
         previewImg.onload = function() {
             const ratio = viewport.offsetHeight / previewImg.naturalHeight;
@@ -128,9 +132,8 @@
         };
     }
 
-    // --- MOUSE CONTROLS ---
     zoomRange.oninput = () => { scale = zoomRange.value; updateTransform(); };
-    viewport.onmousedown = (e) => { isDragging = true; startX = e.clientX - posX; startY = e.clientY - posY; viewport.style.cursor = 'grabbing'; };
+    viewport.onmousedown = (e) => { isDragging = true; startX = e.clientX - posX; startY = e.clientY - posY; viewport.style.cursor = 'grabbing'; e.preventDefault(); };
     window.onmousemove = (e) => { if (!isDragging) return; posX = e.clientX - startX; posY = e.clientY - startY; updateTransform(); };
     window.onmouseup = () => { isDragging = false; viewport.style.cursor = 'move'; };
 
@@ -139,27 +142,31 @@
         previewImg.style.transform = `translate(calc(-50% + ${posX}px), calc(-50% + ${posY}px)) scale(${scale})`;
     }
 
-    // --- DATABASE SAVE ---
     async function generateLink() {
+        const btn = document.getElementById('finishBtn');
+        btn.innerText = "Saving..."; 
+        
         const { data, error } = await supabase
             .from('Preview')
             .insert([{ 
-                title: titleInput.value, 
-                description: descInput.value, 
+                title: titleInput.value || "Untitled", 
+                description: descInput.value || "", 
                 image_url: imageUrlInput.value 
             }])
             .select();
 
         if (error) {
+            console.error("Supabase Error:", error);
             alert("Error saving: " + error.message);
+            btn.innerText = "FINISH & GET LINK";
         } else {
+            btn.innerText = "FINISH & GET LINK";
             const postId = data[0].id;
             const finalUrl = window.location.origin + window.location.pathname + '?id=' + postId;
             shareBox.style.display = 'block';
-            shareBox.innerHTML = `<strong>Link Created!</strong><br><input type="text" readonly value="${finalUrl}" style="width:100%; margin-top:5px;" onclick="this.select()">`;
+            shareBox.innerHTML = `<strong>Link Created!</strong><br><input type="text" id="resultLink" readonly value="${finalUrl}" style="width:100%; margin-top:5px; padding:8px;" onclick="this.select()">`;
         }
     }
 </script>
-
 </body>
 </html>
