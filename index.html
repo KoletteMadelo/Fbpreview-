@@ -11,7 +11,6 @@
         .controls { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 30px; width: 100%; max-width: 500px; }
         .controls input, .controls textarea { width: 100%; margin-bottom: 10px; padding: 10px; box-sizing: border-box; border: 1px solid #ddd; border-radius: 4px; }
         
-        /* Layout for the URL and Preview Button */
         .url-group { display: flex; gap: 5px; margin-bottom: 10px; }
         .url-group input { margin-bottom: 0; flex-grow: 1; }
         .preview-btn { background: #42b72a; color: white; border: none; padding: 0 15px; border-radius: 4px; font-weight: bold; cursor: pointer; }
@@ -100,7 +99,6 @@
 
     let scale = 1, posX = 0, posY = 0, isDragging = false, startX, startY;
 
-    // Load data if URL has an ID
     window.onload = async () => {
         const params = new URLSearchParams(window.location.search);
         const postId = params.get('id');
@@ -129,14 +127,19 @@
     }
 
     function loadImage(url) {
-        previewImg.crossOrigin = "anonymous"; 
-        previewImg.src = url;
+        // Fix applied here: Removed crossOrigin and added cacheBuster
+        const cacheBuster = url.includes('?') ? '&' : '?';
+        previewImg.src = url + cacheBuster + "t=" + new Date().getTime();
+        
         previewImg.onload = function() {
             const ratio = viewport.offsetHeight / previewImg.naturalHeight;
             scale = ratio; zoomRange.value = ratio; posX = 0; posY = 0;
             updateTransform();
         };
-        previewImg.onerror = () => alert("Could not load image. Check the URL!");
+        previewImg.onerror = () => {
+            console.error("Failed to load:", url);
+            alert("This image host is blocking the preview. If it doesn't show up, try using Postimages.org direct links!");
+        };
     }
 
     zoomRange.oninput = () => { scale = zoomRange.value; updateTransform(); };
