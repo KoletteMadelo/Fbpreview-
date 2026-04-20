@@ -42,10 +42,9 @@
         .zoom-controls { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
         .zoom-slider { flex-grow: 1; }
         
-        /* Finish Button Style */
         #finishBtn { background: #1877F2; color: white; border: none; padding: 12px; width: 100%; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 10px; }
         #finishBtn:hover { background: #166fe5; }
-        #shareBox { margin-top: 15px; padding: 10px; background: #e7f3ff; border-radius: 6px; display: none; }
+        #shareBox { margin-top: 15px; padding: 10px; background: #e7f3ff; border-radius: 6px; display: none; word-break: break-all; font-size: 14px; }
     </style>
 </head>
 <body>
@@ -83,9 +82,10 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
+    // Your credentials from your screenshots
     const supabaseUrl = 'https://jqecjgwxsemokamqcywn.supabase.co';
     const supabaseKey = 'sb_publishable_6IbHpLTuMGsvy0sRD6szkg_dLudlQR8';
-    const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+    const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 
     const imageUrlInput = document.getElementById('imageUrlInput');
     const previewImg = document.getElementById('preview-img');
@@ -97,11 +97,12 @@
 
     let scale = 1, posX = 0, posY = 0, isDragging = false, startX, startY;
 
+    // Load data if URL has an ID
     window.onload = async () => {
         const params = new URLSearchParams(window.location.search);
         const postId = params.get('id');
         if (postId) {
-            const { data, error } = await supabase.from('Preview').select('*').eq('id', postId).single();
+            const { data, error } = await supabaseClient.from('Preview').select('*').eq('id', postId).single();
             if (data) {
                 imageUrlInput.value = data.image_url;
                 titleInput.value = data.title;
@@ -123,7 +124,7 @@
     };
 
     function loadImage(url) {
-        previewImg.crossOrigin = "anonymous"; 
+        previewImg.crossOrigin = "anonymous"; // Added this to fix image display issues
         previewImg.src = url;
         previewImg.onload = function() {
             const ratio = viewport.offsetHeight / previewImg.naturalHeight;
@@ -144,27 +145,28 @@
 
     async function generateLink() {
         const btn = document.getElementById('finishBtn');
-        btn.innerText = "Saving..."; 
+        btn.innerText = "Saving to Database...";
         
-        const { data, error } = await supabase
+        // This inserts into your "Preview" table
+        const { data, error } = await supabaseClient
             .from('Preview')
             .insert([{ 
-                title: titleInput.value || "Untitled", 
+                title: titleInput.value || "No Title", 
                 description: descInput.value || "", 
                 image_url: imageUrlInput.value 
             }])
             .select();
 
         if (error) {
-            console.error("Supabase Error:", error);
-            alert("Error saving: " + error.message);
+            console.error("Supabase error:", error);
+            alert("Save failed: " + error.message);
             btn.innerText = "FINISH & GET LINK";
         } else {
             btn.innerText = "FINISH & GET LINK";
             const postId = data[0].id;
             const finalUrl = window.location.origin + window.location.pathname + '?id=' + postId;
             shareBox.style.display = 'block';
-            shareBox.innerHTML = `<strong>Link Created!</strong><br><input type="text" id="resultLink" readonly value="${finalUrl}" style="width:100%; margin-top:5px; padding:8px;" onclick="this.select()">`;
+            shareBox.innerHTML = `<strong>Success! Link Created:</strong><br><input type="text" readonly value="${finalUrl}" style="width:100%; margin-top:5px; padding:5px;" onclick="this.select()">`;
         }
     }
 </script>
