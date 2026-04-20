@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Social Media Post Simulator</title>
+    <style>
+        :root {
+            --fb-blue: #1877F2;
+            --bg-gray: #f0f2f5;
+        }
+
+        body { font-family: Helvetica, Arial, sans-serif; background: var(--bg-gray); display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        
+        /* Control Panel Styles */
+        .controls { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 30px; width: 100%; max-width: 500px; }
+        .controls input, .controls textarea { width: 100%; margin-bottom: 10px; padding: 8px; box-sizing: border-box; border: 1px solid #ddd; border-radius: 4px; }
+        
+        /* Facebook Card Styles */
+        .fb-card { background: white; width: 500px; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.2); overflow: hidden; }
+        .fb-header { padding: 12px; display: flex; align-items: center; }
+        .fb-avatar { width: 40px; height: 40px; background: #ddd; border-radius: 50%; margin-right: 10px; }
+        .fb-user-info { font-weight: bold; font-size: 15px; }
+        
+        .fb-description { padding: 0 12px 12px 12px; font-size: 15px; word-wrap: break-word; }
+
+        /* Image Viewport (The "Cropper") */
+        .image-viewport {
+            width: 100%;
+            height: 300px;
+            background: #000;
+            position: relative;
+            overflow: hidden; /* This clips the image */
+            cursor: move;
+        }
+
+        #preview-img {
+            position: absolute;
+            transform-origin: center;
+            user-select: none;
+            -webkit-user-drag: none;
+        }
+
+        .fb-footer { padding: 12px; border-top: 1px solid #ebedf0; }
+        .fb-title { font-weight: bold; font-size: 16px; margin-bottom: 4px; }
+        
+        .zoom-slider { width: 100%; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="controls">
+    <h3>Post Editor</h3>
+    <input type="file" id="imageInput" accept="image/*">
+    <input type="text" id="titleInput" placeholder="Enter Title (Headline)...">
+    <textarea id="descInput" placeholder="Write a description..." rows="3"></textarea>
+    <label>Zoom Image:</label>
+    <input type="range" id="zoomRange" class="zoom-slider" min="0.1" max="3" step="0.01" value="1">
+</div>
+
+<div class="fb-card">
+    <div class="fb-header">
+        <div class="fb-avatar"></div>
+        <div class="fb-user-info">Your Page Name</div>
+    </div>
+    
+    <div id="displayDesc" class="fb-description">Your description will appear here...</div>
+
+    <div class="image-viewport" id="viewport">
+        <img src="" id="preview-img" alt="Upload an image" style="display:none;">
+    </div>
+
+    <div class="fb-footer">
+        <div id="displayTitle" class="fb-title">Link Title Headline</div>
+        <div style="color: #65676b; font-size: 13px; text-transform: uppercase;">Yourdomain.com</div>
+    </div>
+</div>
+
+<script>
+    const imageInput = document.getElementById('imageInput');
+    const previewImg = document.getElementById('preview-img');
+    const titleInput = document.getElementById('titleInput');
+    const descInput = document.getElementById('descInput');
+    const zoomRange = document.getElementById('zoomRange');
+    const viewport = document.getElementById('viewport');
+
+    let scale = 1;
+    let posX = 0;
+    let posY = 0;
+    let isDragging = false;
+    let startX, startY;
+
+    // 1. Handle Text Updates
+    titleInput.oninput = () => document.getElementById('displayTitle').innerText = titleInput.value;
+    descInput.oninput = () => document.getElementById('displayDesc').innerText = descInput.value;
+
+    // 2. Handle Image Upload
+    imageInput.onchange = (e) => {
+        const [file] = e.target.files;
+        if (file) {
+            previewImg.src = URL.createObjectURL(file);
+            previewImg.style.display = 'block';
+            // Reset position
+            posX = 0; posY = 0; scale = 1;
+            zoomRange.value = 1;
+            updateTransform();
+        }
+    };
+
+    // 3. Zoom Logic
+    zoomRange.oninput = () => {
+        scale = zoomRange.value;
+        updateTransform();
+    };
+
+    // 4. Dragging Logic
+    viewport.onmousedown = (e) => {
+        isDragging = true;
+        startX = e.clientX - posX;
+        startY = e.clientY - posY;
+    };
+
+    window.onmousemove = (e) => {
+        if (!isDragging) return;
+        posX = e.clientX - startX;
+        posY = e.clientY - startY;
+        updateTransform();
+    };
+
+    window.onmouseup = () => isDragging = false;
+
+    function updateTransform() {
+        previewImg.style.transform = `translate(${posX}px, ${posY}px) scale(${scale})`;
+    }
+</script>
+
+</body>
+</html>
