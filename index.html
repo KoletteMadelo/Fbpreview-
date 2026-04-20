@@ -19,7 +19,7 @@
 
         .image-viewport {
             width: 100%;
-            height: 260px; /* Standard FB link height */
+            height: 260px;
             background: #e9ebee;
             position: relative;
             overflow: hidden;
@@ -28,11 +28,10 @@
 
         #preview-img {
             position: absolute;
-            max-width: none; /* Allows zoom to work properly */
+            max-width: none;
             user-select: none;
             -webkit-user-drag: none;
             display: block;
-            /* Start centered */
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%) scale(1);
@@ -42,6 +41,11 @@
         .fb-title { font-weight: bold; font-size: 16px; margin-bottom: 4px; color: #1d2129; }
         .zoom-controls { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
         .zoom-slider { flex-grow: 1; }
+        
+        /* New Style for Finish Button */
+        #finishBtn { background: #1877F2; color: white; border: none; padding: 12px; width: 100%; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        #finishBtn:hover { background: #166fe5; }
+        #shareBox { margin-top: 15px; padding: 10px; background: #e7f3ff; border-radius: 6px; display: none; }
     </style>
 </head>
 <body>
@@ -57,6 +61,9 @@
         <input type="range" id="zoomRange" class="zoom-slider" min="0.1" max="5" step="0.01" value="1">
         <button onclick="resetImage()">Reset</button>
     </div>
+
+    <button id="finishBtn" onclick="generateLink()">FINISH & GET LINK</button>
+    <div id="shareBox"></div>
 </div>
 
 <div class="fb-card">
@@ -74,73 +81,83 @@
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
+    const supabaseUrl = 'https://jqecjgwxsemokamqcywn.supabase.co';
+    const supabaseKey = 'sb_publishable_6IbHpLTuMGsvy0sRD6szkg_dLudlQR8';
+    const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+
     const imageUrlInput = document.getElementById('imageUrlInput');
     const previewImg = document.getElementById('preview-img');
     const titleInput = document.getElementById('titleInput');
     const descInput = document.getElementById('descInput');
     const zoomRange = document.getElementById('zoomRange');
     const viewport = document.getElementById('viewport');
+    const shareBox = document.getElementById('shareBox');
 
-    let scale = 1;
-    let posX = 0;
-    let posY = 0;
-    let isDragging = false;
-    let startX, startY;
+    let scale = 1, posX = 0, posY = 0, isDragging = false, startX, startY;
 
-    // 1. Text Updates
+    // --- AUTOMATIC LOADING ---
+    window.onload = async () => {
+        const params = new URLSearchParams(window.location.search);
+        const postId = params.get('id');
+        if (postId) {
+            const { data, error } = await supabase.from('Preview').select('*').eq('id', postId).single();
+            if (data) {
+                imageUrlInput.value = data.image_url;
+                titleInput.value = data.title;
+                descInput.value = data.description;
+                document.getElementById('displayTitle').innerText = data.title;
+                document.getElementById('displayDesc').innerText = data.description;
+                loadImage(data.image_url);
+            }
+        }
+    };
+
+    // --- UI UPDATES ---
     titleInput.oninput = () => document.getElementById('displayTitle').innerText = titleInput.value;
     descInput.oninput = () => document.getElementById('displayDesc').innerText = descInput.value;
+    imageUrlInput.oninput = () => loadImage(imageUrlInput.value);
 
-    // 2. URL Image Loading & "Auto-Fit"
-    imageUrlInput.oninput = () => {
-        previewImg.src = imageUrlInput.value;
+    function loadImage(url) {
+        previewImg.src = url;
         previewImg.onload = function() {
-            // Calculate scale to fit the image to the viewport height initially
             const ratio = viewport.offsetHeight / previewImg.naturalHeight;
-            scale = ratio;
-            zoomRange.value = ratio;
-            posX = 0; 
-            posY = 0;
+            scale = ratio; zoomRange.value = ratio; posX = 0; posY = 0;
             updateTransform();
         };
-    };
-
-    // 3. Zoom Logic
-    zoomRange.oninput = () => {
-        scale = zoomRange.value;
-        updateTransform();
-    };
-
-    // 4. Dragging Logic
-    viewport.onmousedown = (e) => {
-        isDragging = true;
-        startX = e.clientX - posX;
-        startY = e.clientY - posY;
-        viewport.style.cursor = 'grabbing';
-    };
-
-    window.onmousemove = (e) => {
-        if (!isDragging) return;
-        posX = e.clientX - startX;
-        posY = e.clientY - startY;
-        updateTransform();
-    };
-
-    window.onmouseup = () => {
-        isDragging = false;
-        viewport.style.cursor = 'move';
-    };
-
-    function resetImage() {
-        posX = 0; posY = 0; scale = 1;
-        zoomRange.value = 1;
-        updateTransform();
     }
 
+    // --- MOUSE CONTROLS ---
+    zoomRange.oninput = () => { scale = zoomRange.value; updateTransform(); };
+    viewport.onmousedown = (e) => { isDragging = true; startX = e.clientX - posX; startY = e.clientY - posY; viewport.style.cursor = 'grabbing'; };
+    window.onmousemove = (e) => { if (!isDragging) return; posX = e.clientX - startX; posY = e.clientY - startY; updateTransform(); };
+    window.onmouseup = () => { isDragging = false; viewport.style.cursor = 'move'; };
+
+    function resetImage() { posX = 0; posY = 0; scale = 1; zoomRange.value = 1; updateTransform(); }
     function updateTransform() {
-        // We use translate(-50%, -50%) to keep it centered while adding our drag offsets
         previewImg.style.transform = `translate(calc(-50% + ${posX}px), calc(-50% + ${posY}px)) scale(${scale})`;
+    }
+
+    // --- DATABASE SAVE ---
+    async function generateLink() {
+        const { data, error } = await supabase
+            .from('Preview')
+            .insert([{ 
+                title: titleInput.value, 
+                description: descInput.value, 
+                image_url: imageUrlInput.value 
+            }])
+            .select();
+
+        if (error) {
+            alert("Error saving: " + error.message);
+        } else {
+            const postId = data[0].id;
+            const finalUrl = window.location.origin + window.location.pathname + '?id=' + postId;
+            shareBox.style.display = 'block';
+            shareBox.innerHTML = `<strong>Link Created!</strong><br><input type="text" readonly value="${finalUrl}" style="width:100%; margin-top:5px;" onclick="this.select()">`;
+        }
     }
 </script>
 
